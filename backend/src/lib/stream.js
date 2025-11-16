@@ -1,4 +1,5 @@
 import { StreamChat } from "stream-chat";
+import { StreamClient } from "@stream-io/node-sdk";
 import { ENV } from "./env.js";
 
 const apiKey = ENV.STREAM_API_KEY;
@@ -8,7 +9,8 @@ if (!apiKey || !apiSecret) {
   console.error("Stream API Key or Stream Secret Key Is Missing");
 }
 
-export const chatClient = StreamChat.getInstance(apiKey, apiSecret);
+export const streamClient = new StreamClient(apiKey, apiSecret); //for video calls
+export const chatClient = StreamChat.getInstance(apiKey, apiSecret); // for chats
 
 export const upsertStreamUser = async (userData) => {
   try {
@@ -27,5 +29,3 @@ export const deleteStreamUser = async (userId) => {
     console.error("Error Deleting Stream User:", error);
   }
 };
-
-// Generation Of Token Logic will be added
