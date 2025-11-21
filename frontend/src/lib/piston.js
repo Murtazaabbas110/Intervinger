@@ -1,6 +1,7 @@
 // Piston API is a service for code execution
 
-const PISTON_API = "https://emkc.org/api/v2/piston";
+const PISTON_API =
+  import.meta.env.VITE_PISTON_API_URL || "https://emkc.org/api/v2/piston";
 
 const LANGUAGE_VERSIONS = {
   javascript: { language: "javascript", version: "18.15.0" },
@@ -23,12 +24,14 @@ export async function executeCode(language, code) {
         error: `Unsupported language: ${language}`,
       };
     }
-
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
     const response = await fetch(`${PISTON_API}/execute`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         language: languageConfig.language,
         version: languageConfig.version,
@@ -40,6 +43,8 @@ export async function executeCode(language, code) {
         ],
       }),
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return {
@@ -66,6 +71,12 @@ export async function executeCode(language, code) {
       output: output || "No output",
     };
   } catch (error) {
+    if (error.name === "AbortError") {
+      return {
+        success: false,
+        error: "Code execution timed out after 30 seconds",
+      };
+    }
     return {
       success: false,
       error: `Failed to execute code: ${error.message}`,

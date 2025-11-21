@@ -16,10 +16,10 @@ function ProblemPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [currentProblemId, setCurrentProblemId] = useState("two-sum");
+  const [currentProblemId, setCurrentProblemId] = useState(id || "two-sum");
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [code, setCode] = useState(
-    PROBLEMS[currentProblemId].starterCode.javascript
+    PROBLEMS[id || "two-sum"]?.starterCode?.javascript || ""
   );
   const [output, setOutput] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -32,6 +32,9 @@ function ProblemPage() {
       setCurrentProblemId(id);
       setCode(PROBLEMS[id].starterCode[selectedLanguage]);
       setOutput(null);
+    } else if (id) {
+      toast.error(`Problem "${id}" not found`);
+      navigate("/problems");
     }
   }, [id, selectedLanguage]);
 
@@ -81,7 +84,7 @@ function ProblemPage() {
     const normalizedActual = normalizeOutput(actualOutput);
     const normalizedExpected = normalizeOutput(expectedOutput);
 
-    return normalizedActual == normalizedExpected;
+    return normalizedActual === normalizedExpected;
   };
 
   const handleRunCode = async () => {
