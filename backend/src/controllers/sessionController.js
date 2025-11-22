@@ -164,6 +164,11 @@ export async function endSession(req, res) {
     const { id } = req.params;
     const userId = req.user._id;
 
+    // ObjectId validation
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: "Invalid session ID" });
+    }
+
     const foundSession = await Session.findById(id);
 
     if (!foundSession)
@@ -175,13 +180,22 @@ export async function endSession(req, res) {
     if (foundSession.status === "completed")
       return res.status(400).json({ msg: "Session is already completed" });
 
-    // Deleting Stream Video call and Chat channel
-    const call = streamClient.video.call("default", foundSession.callId);
-    await call.delete({ hard: true });
+    // Delete Stream video call and chat channel safely
+    try {
+      const call = streamClient.video.call("default", foundSession.callId);
+      await call.delete({ hard: true });
+    } catch (err) {
+      console.log("Stream call delete failed:", err.message);
+    }
 
-    const channel = chatClient.channel("messaging", foundSession.callId);
-    await channel.delete();
+    try {
+      const channel = chatClient.channel("messaging", foundSession.callId);
+      await channel.delete();
+    } catch (err) {
+      console.log("Chat channel delete failed:", err.message);
+    }
 
+    // Update status to completed
     foundSession.status = "completed";
     await foundSession.save();
 
@@ -190,7 +204,7 @@ export async function endSession(req, res) {
       msg: "Session ended successfully",
     });
   } catch (error) {
-    console.log("Error in endSession controller", error.message);
+    console.log("Error in endSession controller:", error.message);
     return res.status(500).json({ msg: "Internal Server Error" });
   }
 }
