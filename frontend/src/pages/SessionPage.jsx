@@ -148,9 +148,9 @@ function SessionPage() {
               Code
             </button>
 
-            <div className="ml-auto text-sm text-base-content/60">
+            {/*<div className="ml-auto text-sm text-base-content/60">
               Tap to toggle panels
-            </div>
+            </div>*/}
           </div>
 
           {/* Mobile content area */}
