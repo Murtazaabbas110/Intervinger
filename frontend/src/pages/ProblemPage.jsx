@@ -38,6 +38,14 @@ function ProblemPage() {
     }
   }, [id, selectedLanguage]);
 
+  const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth >= 1024);
+
+  useEffect(() => {
+    const handleResize = () => setIsLargeScreen(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const handleLanguageChange = (e) => {
     const newLang = e.target.value;
     setSelectedLanguage(newLang);
@@ -117,8 +125,8 @@ function ProblemPage() {
       <Navbar />
 
       <div className="flex-1">
-        <PanelGroup direction="horizontal">
-          {/* left panel- problem desc */}
+        <PanelGroup direction={isLargeScreen ? "horizontal" : "vertical"}>
+          {/* Left panel - problem description */}
           <Panel defaultSize={40} minSize={30}>
             <ProblemDescription
               problem={currentProblem}
@@ -128,12 +136,16 @@ function ProblemPage() {
             />
           </Panel>
 
-          <PanelResizeHandle className="w-2 bg-base-300 hover:bg-primary transition-colors cursor-col-resize" />
+          <PanelResizeHandle
+            className={`${
+              isLargeScreen ? "w-2 cursor-col-resize" : "h-2 cursor-row-resize"
+            } bg-base-300 hover:bg-primary transition-colors`}
+          />
 
-          {/* right panel- code editor & output */}
+          {/* Right panel - code editor & output */}
           <Panel defaultSize={60} minSize={30}>
             <PanelGroup direction="vertical">
-              {/* Top panel - Code editor */}
+              {/* Top panel - code editor */}
               <Panel defaultSize={70} minSize={30}>
                 <CodeEditorPanel
                   selectedLanguage={selectedLanguage}
@@ -147,8 +159,7 @@ function ProblemPage() {
 
               <PanelResizeHandle className="h-2 bg-base-300 hover:bg-primary transition-colors cursor-row-resize" />
 
-              {/* Bottom panel - Output Panel*/}
-
+              {/* Bottom panel - output */}
               <Panel defaultSize={30} minSize={30}>
                 <OutputPanel output={output} />
               </Panel>

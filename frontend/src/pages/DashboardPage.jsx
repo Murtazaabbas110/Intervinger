@@ -1,7 +1,11 @@
 import { useNavigate } from "react-router";
 import { useUser } from "@clerk/clerk-react";
 import { useState } from "react";
-import { useActiveSessions, useCreateSession, useMyRecentSessions } from "../hooks/useSessions";
+import {
+  useActiveSessions,
+  useCreateSession,
+  useMyRecentSessions,
+} from "../hooks/useSessions";
 
 import Navbar from "../components/Navbar";
 import WelcomeSection from "../components/WelcomeSection";
@@ -18,8 +22,10 @@ function DashboardPage() {
 
   const createSessionMutation = useCreateSession();
 
-  const { data: activeSessionsData, isLoading: loadingActiveSessions } = useActiveSessions();
-  const { data: recentSessionsData, isLoading: loadingRecentSessions } = useMyRecentSessions();
+  const { data: activeSessionsData, isLoading: loadingActiveSessions } =
+    useActiveSessions();
+  const { data: recentSessionsData, isLoading: loadingRecentSessions } =
+    useMyRecentSessions();
 
   const handleCreateRoom = () => {
     if (!roomConfig.problem || !roomConfig.difficulty) return;
@@ -44,33 +50,50 @@ function DashboardPage() {
   const isUserInSession = (session) => {
     if (!user.id) return false;
 
-    return session.host?.clerkId === user.id || session.participant?.clerkId === user.id;
+    return (
+      session.host?.clerkId === user.id ||
+      session.participant?.clerkId === user.id
+    );
   };
 
   return (
     <>
-      <div className="min-h-screen bg-base-300">
+      <div className="min-h-screen bg-base-300 flex flex-col">
         <Navbar />
+
         <WelcomeSection onCreateSession={() => setShowCreateModal(true)} />
 
-        {/* Grid layout */}
-        <div className="container mx-auto px-6 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <main className="flex-1 container mx-auto px-4 sm:px-6 md:px-8 py-8">
+          {/* Responsive Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {/* Stats Cards */}
             <StatsCards
               activeSessionsCount={activeSessions.length}
               recentSessionsCount={recentSessions.length}
             />
-            <ActiveSessions
-              sessions={activeSessions}
-              isLoading={loadingActiveSessions}
-              isUserInSession={isUserInSession}
-            />
+
+            {/* Active Sessions */}
+            <div className="sm:col-span-2 lg:col-span-2 xl:col-span-3">
+              <ActiveSessions
+                sessions={activeSessions}
+                isLoading={loadingActiveSessions}
+                isUserInSession={isUserInSession}
+              />
+            </div>
           </div>
 
-          <RecentSessions sessions={recentSessions} isLoading={loadingRecentSessions} />
-        </div>
+          {/* Recent Sessions */}
+          <div className="mt-8 w-full overflow-x-auto">
+            <RecentSessions
+              sessions={recentSessions}
+              isLoading={loadingRecentSessions}
+            />
+          </div>
+        </main>
       </div>
 
+      {/* Create Session Modal */}
       <CreateSessionModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}

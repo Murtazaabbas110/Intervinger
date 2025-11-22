@@ -12,14 +12,19 @@ function CodeEditorPanel({
 }) {
   return (
     <div className="h-full bg-base-300 flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 bg-base-100 border-t border-base-300">
-        <div className="flex items-center gap-3">
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between px-4 py-3 bg-base-100 border-t border-base-300 gap-2 sm:gap-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-1">
           <img
             src={LANGUAGE_CONFIG[selectedLanguage].icon}
             alt={LANGUAGE_CONFIG[selectedLanguage].name}
-            className="size-6"
+            className="size-5 sm:size-6 flex-shrink-0"
           />
-          <select className="select select-sm" value={selectedLanguage} onChange={onLanguageChange}>
+          <select
+            className="select select-sm sm:select-md w-full sm:w-auto"
+            value={selectedLanguage}
+            onChange={onLanguageChange}
+          >
             {Object.entries(LANGUAGE_CONFIG).map(([key, lang]) => (
               <option key={key} value={key}>
                 {lang.name}
@@ -28,7 +33,11 @@ function CodeEditorPanel({
           </select>
         </div>
 
-        <button className="btn btn-primary btn-sm gap-2" disabled={isRunning} onClick={onRunCode}>
+        <button
+          className="btn btn-primary btn-sm sm:btn-md gap-2 w-full sm:w-auto justify-center"
+          disabled={isRunning}
+          onClick={onRunCode}
+        >
           {isRunning ? (
             <>
               <Loader2Icon className="size-4 animate-spin" />
@@ -43,19 +52,21 @@ function CodeEditorPanel({
         </button>
       </div>
 
-      <div className="flex-1">
+      {/* EDITOR */}
+      <div className="flex-1 min-h-[200px]">
         <Editor
-          height={"100%"}
+          height="100%"
           language={LANGUAGE_CONFIG[selectedLanguage].monacoLang}
           value={code}
           onChange={onCodeChange}
           theme="vs-dark"
           options={{
-            fontSize: 16,
+            fontSize: 14, // slightly smaller for mobile
             lineNumbers: "on",
             scrollBeyondLastLine: false,
             automaticLayout: true,
             minimap: { enabled: false },
+            wordWrap: "on", // avoid horizontal scrolling
           }}
         />
       </div>
