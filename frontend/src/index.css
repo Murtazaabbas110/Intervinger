@@ -9,3 +9,41 @@
     cursor: pointer;
   }
 }
+
+/* Example targeted CSS — tweak selectors if SDK uses different classes */
+.stream-video .call-controls,
+.stream-video .str-video__controls,
+.call-controls-wrapper {
+  --cc-padding: 0.375rem; /* smaller padding */
+  --cc-icon-size: 1rem; /* shrink icons */
+}
+
+/* Fallback: more forceful rules (use cautiously) */
+.stream-video .call-controls button,
+.stream-video .str-video__controls button {
+  padding: 0.25rem !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  font-size: 0.9rem !important;
+}
+
+/* Shrink icon svgs inside the controls on small screens */
+@media (max-width: 640px) {
+  .stream-video .call-controls svg,
+  .stream-video .str-video__controls svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+}
+
+/* optional quick CSS to force SDK media to fill area */
+.str-video__participant,
+.stream-video video,
+.stream-video canvas,
+.stream-video img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  position: absolute !important;
+  inset: 0 !important;
+}

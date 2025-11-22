@@ -1,22 +1,31 @@
 function OutputPanel({ output }) {
   return (
     <div className="h-full bg-base-100 flex flex-col">
-      <div className="px-4 py-2 bg-base-200 border-b border-base-300 font-semibold text-sm">
+      {/* HEADER */}
+      <div className="px-3 sm:px-4 py-2 sm:py-3 bg-base-200 border-b border-base-300 font-semibold text-sm sm:text-base">
         Output
       </div>
-      <div className="flex-1 overflow-auto p-4">
+
+      {/* CONTENT */}
+      <div className="flex-1 overflow-auto p-3 sm:p-4 text-sm sm:text-base">
         {output === null ? (
-          <p className="text-base-content/50 text-sm">Click "Run Code" to see the output here...</p>
+          <p className="text-base-content/50">
+            Click "Run Code" to see the output here...
+          </p>
         ) : output.success ? (
-          <pre className="text-sm font-mono text-success whitespace-pre-wrap">{output.output}</pre>
+          <pre className="font-mono text-success whitespace-pre-wrap break-words">
+            {output.output}
+          </pre>
         ) : (
-          <div>
+          <div className="space-y-2">
             {output.output && (
-              <pre className="text-sm font-mono text-base-content whitespace-pre-wrap mb-2">
+              <pre className="font-mono text-base-content whitespace-pre-wrap break-words">
                 {output.output}
               </pre>
             )}
-            <pre className="text-sm font-mono text-error whitespace-pre-wrap">{output.error}</pre>
+            <pre className="font-mono text-error whitespace-pre-wrap break-words">
+              {output.error}
+            </pre>
           </div>
         )}
       </div>
