@@ -1,5 +1,6 @@
 import { chatClient, streamClient } from "../lib/stream.js";
 import Session from "../models/Session.js";
+import mongoose from "mongoose";
 
 export async function createSession(req, res) {
   let channel = null;
