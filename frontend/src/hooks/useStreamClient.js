@@ -16,38 +16,29 @@ function useStreamClient(session, loadingSession, isHost, isParticipant) {
     let chatClientInstance = null;
 
     const initCall = async () => {
-      if (!session?.callId) return;
-      if (!isHost && !isParticipant) return;
-      if (session.status === "completed") return;
-
       try {
+        // Early-return guards inside try
+        if (!session?.callId) return;
+        if (!isHost && !isParticipant) return;
+        if (session.status === "completed") return;
+
         const { token, userId, userName, userImage } =
           await sessionApi.getStreamToken();
 
         const client = await initializeStreamClient(
-          {
-            id: userId,
-            name: userName,
-            image: userImage,
-          },
+          { id: userId, name: userName, image: userImage },
           token
         );
-
         setStreamClient(client);
 
-        videoCall = client.call("default", session.callId);
+        const videoCall = client.call("default", session.callId);
         await videoCall.join({ create: true });
         setCall(videoCall);
 
         const apiKey = import.meta.env.VITE_STREAM_API_KEY;
-        chatClientInstance = StreamChat.getInstance(apiKey);
-
+        const chatClientInstance = StreamChat.getInstance(apiKey);
         await chatClientInstance.connectUser(
-          {
-            id: userId,
-            name: userName,
-            image: userImage,
-          },
+          { id: userId, name: userName, image: userImage },
           token
         );
         setChatClient(chatClientInstance);
@@ -62,6 +53,7 @@ function useStreamClient(session, loadingSession, isHost, isParticipant) {
         toast.error("Failed to join video call");
         console.error("Error init call", error);
       } finally {
+        // Always runs
         setIsInitializingCall(false);
       }
     };
