@@ -17,9 +17,24 @@ export async function createSession(req, res) {
       .toString(36)
       .substring(7)}`;
 
-    //
+    // 1️⃣ Create chat + session first
+    let session;
+    const channel = chatClient.channel("messaging", callId, {
+      name: `${problem} Session`,
+      created_by_id: clerkId,
+      members: [clerkId],
+    });
 
-    //video
+    await channel.create();
+
+    session = await Session.create({
+      problem,
+      difficulty,
+      host: userId,
+      callId,
+    });
+
+    // 2️⃣ Now video call can safely include session._id
     const call = streamClient.video.call("default", callId);
     await call.getOrCreate({
       data: {
@@ -28,32 +43,13 @@ export async function createSession(req, res) {
       },
     });
 
-    //chat
-    let session;
-    try {
-      const channel = chatClient.channel("messaging", callId, {
-        name: `${problem} Session`,
-        created_by_id: clerkId,
-        members: [clerkId],
-      });
-      await channel.create();
-      session = await Session.create({
-        problem,
-        difficulty,
-        host: userId,
-        callId,
-      });
-    } catch (channelError) {
-      await call.delete({ hard: true }).catch(console.error);
-      throw channelError;
-    }
-
     res.status(201).json({ session });
   } catch (error) {
     console.log("Error in createSession controller", error.message);
     res.status(500).json({ msg: "Internal Server Error" });
   }
 }
+
 
 export async function getActiveSessions(_, res) {
   try {
