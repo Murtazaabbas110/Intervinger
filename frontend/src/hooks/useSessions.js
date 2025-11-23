@@ -1,7 +1,6 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { sessionApi } from "../api/sessions";
-
 
 //============= Custom Hooks For Readability and management =============
 export const useCreateSession = () => {
@@ -9,19 +8,21 @@ export const useCreateSession = () => {
     mutationKey: ["createSession"],
     mutationFn: sessionApi.createSession,
     onSuccess: () => toast.success("Session created successfully!"),
-    onError: (error) => toast.error(error.response?.data?.message || "Failed to create room"),
+    onError: (error) =>
+      toast.error(error.response?.data?.message || "Failed to create room"),
   });
 
   return result;
 };
 
 export const useActiveSessions = () => {
-  const result = useQuery({
+  return useQuery({
     queryKey: ["activeSessions"],
-    queryFn: sessionApi.getActiveSessions,
+    queryFn: () => sessionApi.getActiveSessions(),
+    staleTime: 0, // force fresh data every time
+    refetchOnWindowFocus: true, // optional: refetch when tab gains focus
+    refetchInterval: 5000, 
   });
-
-  return result;
 };
 
 export const useMyRecentSessions = () => {
@@ -49,7 +50,8 @@ export const useJoinSession = () => {
     mutationKey: ["joinSession"],
     mutationFn: sessionApi.joinSession,
     onSuccess: () => toast.success("Joined session successfully!"),
-    onError: (error) => toast.error(error.response?.data?.message || "Failed to join session"),
+    onError: (error) =>
+      toast.error(error.response?.data?.message || "Failed to join session"),
   });
 
   return result;
@@ -60,8 +62,54 @@ export const useEndSession = () => {
     mutationKey: ["endSession"],
     mutationFn: sessionApi.endSession,
     onSuccess: () => toast.success("Session ended successfully!"),
-    onError: (error) => toast.error(error.response?.data?.message || "Failed to end session"),
+    onError: (error) =>
+      toast.error(error.response?.data?.message || "Failed to end session"),
   });
 
   return result;
+};
+
+export const useLeaveSession = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sessionId) => sessionApi.leaveSession(sessionId),
+
+    // optimistic update: remove participant locally immediately
+    onMutate: async (sessionId) => {
+      await queryClient.cancelQueries(["activeSessions"]);
+      const previous = queryClient.getQueryData(["activeSessions"]);
+
+      queryClient.setQueryData(["activeSessions"], (old) => {
+        if (!old) return old;
+        // old is { sessions: [...] } or might be an array depending on your queryFn,
+        // handle both shapes gracefully:
+        const sessionsArr = old.sessions ?? old;
+        const updated = sessionsArr.map((s) =>
+          s._id === sessionId ? { ...s, participant: null } : s
+        );
+        return old.sessions ? { ...old, sessions: updated } : updated;
+      });
+
+      return { previous };
+    },
+
+    onError: (err, sessionId, context) => {
+      // rollback on error
+      if (context?.previous) {
+        queryClient.setQueryData(["activeSessions"], context.previous);
+      }
+      toast.error(err?.response?.data?.message || "Failed to leave session");
+    },
+
+    onSettled: (_, __, sessionId) => {
+      // final refetch to ensure server truth wins
+      queryClient.invalidateQueries(["activeSessions"]);
+      queryClient.invalidateQueries(["session", sessionId]);
+    },
+
+    onSuccess: () => {
+      toast.success("You left the session");
+    },
+  });
 };

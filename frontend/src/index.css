@@ -14,12 +14,11 @@
 /* Stream Video — Button Controls */
 /* ============================ */
 .str-video {
-  /* Button styling */
-  --str-video__button-padding: 0.25rem; /* padding inside buttons */
-  --str-video__icon-size: 1rem; /* icon size inside buttons */
-  --str-video__button-height: 36px; /* button height */
-  --str-video__button-width: 36px; /* button width */
-  --str-video__button-border-radius: 0.5rem; /* optional rounded corners */
+  /* shrink buttons for a shorter bar */
+  --str-video__button-height: 32px; /* smaller than default 36px */
+  --str-video__button-width: 32px;
+  --str-video__button-padding: 0.125rem; /* reduces extra spacing inside buttons */
+  --str-video__icon-size: 0.875rem; /* smaller icons inside buttons */
 }
 
 /* Responsive adjustments for small screens */
@@ -48,22 +47,21 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  position: absolute;
-  inset: 0;
+  /* remove position absolute */
 }
 
 /* ============================ */
 /* Optional: Call Controls Wrapper Extra Styling */
 /* ============================ */
 .str-video__controls,
+/* Make CallControls fully transparent / minimal */
 .str-video__call-controls {
-  display: flex;
-  gap: 0.25rem; /* space between buttons */
-  justify-content: center;
-  align-items: center;
-  padding: var(--str-video__button-padding);
-  background-color: rgba(20, 20, 20, 0.7); /* semi-transparent bg */
+  background-color: rgba(255, 255, 255, 0.05); /* almost invisible */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); /* subtle shadow */
   border-radius: 0.5rem;
+
+  /* reduce height by lowering padding */
+  padding: 0.05rem 0.5rem; /* vertical padding 0.25rem, horizontal 0.5rem */
 }
 
 /* Scrollable call controls if buttons overflow (small screens) */
@@ -79,6 +77,12 @@
     background-color: rgba(255, 255, 255, 0.3);
     border-radius: 2px;
   }
+  .str-video {
+    --str-video__button-height: 28px;
+    --str-video__button-width: 28px;
+    --str-video__button-padding: 0.1rem;
+    --str-video__icon-size: 0.75rem;
+  }
 }
 
 /* ============================ */
@@ -86,6 +90,16 @@
 /* ============================ */
 .str-video__participant {
   border-radius: 0.25rem;
-  overflow: hidden;
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+}
+
+.str-video__participant video {
+  border-radius: inherit;
+}
+
+@media (max-width: 768px) {
+  .video-area {
+    height: calc(100vh - 80px); /* subtract chat bar + controls */
+    min-height: 300px; /* ensure video can't collapse */
+  }
 }

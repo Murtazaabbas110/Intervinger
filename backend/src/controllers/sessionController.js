@@ -12,7 +12,9 @@ export async function createSession(req, res) {
     const clerkId = req.user.clerkId;
 
     if (!problem || !difficulty) {
-      return res.status(400).json({ msg: "Problem and difficulty are required" });
+      return res
+        .status(400)
+        .json({ msg: "Problem and difficulty are required" });
     }
 
     const callId = `session_${Date.now()}_${Math.random()
@@ -49,7 +51,6 @@ export async function createSession(req, res) {
     });
 
     return res.status(201).json({ session: createdSession });
-
   } catch (error) {
     console.log("Error in createSession controller:", error.message);
 
@@ -90,7 +91,6 @@ export async function getMyRecentSessions(req, res) {
       .sort({ createdAt: -1 })
       .limit(20);
     return res.status(200).json({ sessions });
-
   } catch (error) {
     console.log("Error in getMyRecentSessions controller", error.message);
     res.status(500).json({ msg: "Internal Server Error" });
@@ -119,7 +119,6 @@ export async function getSessionById(req, res) {
     return res.status(500).json({ msg: "Internal Server Error" });
   }
 }
-
 
 export async function joinSession(req, res) {
   try {
@@ -158,7 +157,6 @@ export async function joinSession(req, res) {
     return res.status(500).json({ msg: "Internal Server Error" });
   }
 }
-
 
 export async function endSession(req, res) {
   try {
@@ -206,6 +204,64 @@ export async function endSession(req, res) {
     });
   } catch (error) {
     console.log("Error in endSession controller:", error.message);
+    return res.status(500).json({ msg: "Internal Server Error" });
+  }
+}
+
+export async function leaveSession(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: "Invalid session ID" });
+    }
+
+    const session = await Session.findById(id);
+    if (!session) return res.status(404).json({ msg: "Session not found" });
+
+    // If host is leaving, end the session automatically
+    if (session.host.toString() === userId.toString()) {
+      // Delete Stream call
+      try {
+        const call = streamClient.video.call("default", session.callId);
+        await call.delete({ hard: true });
+      } catch (err) {
+        console.log("Stream call delete failed:", err.message);
+      }
+
+      // Delete chat channel
+      try {
+        const channel = chatClient.channel("messaging", session.callId);
+        await channel.delete();
+      } catch (err) {
+        console.log("Chat channel delete failed:", err.message);
+      }
+
+      session.status = "completed";
+      await session.save();
+
+      return res.status(200).json({ session, msg: "Host left: session ended" });
+    }
+
+    // If participant is leaving
+    if (!session.participant || session.participant.toString() !== userId.toString()) {
+      return res.status(403).json({ msg: "You are not a participant of this session" });
+    }
+
+    session.participant = null;
+    await session.save();
+
+    try {
+      const channel = chatClient.channel("messaging", session.callId);
+      await channel.removeMembers([req.user.clerkId]);
+    } catch (err) {
+      console.log("Failed to remove participant from chat channel:", err.message);
+    }
+
+    return res.status(200).json({ session, msg: "You have left the session" });
+  } catch (error) {
+    console.log("Error in leaveSession controller:", error.message);
     return res.status(500).json({ msg: "Internal Server Error" });
   }
 }
