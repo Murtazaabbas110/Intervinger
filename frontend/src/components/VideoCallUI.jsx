@@ -5,7 +5,13 @@ import {
   SpeakerLayout,
   useCallStateHooks,
 } from "@stream-io/video-react-sdk";
-import { Loader2Icon, MessageSquareIcon, UsersIcon, XIcon } from "lucide-react";
+import {
+  Loader2Icon,
+  LogOutIcon,
+  MessageSquareIcon,
+  UsersIcon,
+  XIcon,
+} from "lucide-react";
 import { useNavigate } from "react-router";
 import {
   Channel,
@@ -18,8 +24,17 @@ import {
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 import "stream-chat-react/dist/css/v2/index.css";
+import { useLeaveSession } from "../hooks/useSessions";
 
-function VideoCallUI({ chatClient, channel }) {
+function VideoCallUI({
+  chatClient,
+  channel,
+  isHost,
+  handleEndSession,
+  session,
+  endSessionMutation,
+  sessionId,
+}) {
   const navigate = useNavigate();
   const { useCallCallingState, useParticipantCount } = useCallStateHooks();
   const callingState = useCallCallingState();
@@ -37,8 +52,18 @@ function VideoCallUI({ chatClient, channel }) {
     );
   }
 
+  const leaveSessionMutation = useLeaveSession();
+
+  const handleLeave = () => {
+    leaveSessionMutation.mutate(sessionId, {
+      onSuccess: () => {
+        navigate("/dashboard"); // then navigate
+      },
+    });
+  };
+
   return (
-    <div className="h-full flex flex-col md:flex-row gap-3 relative str-video overflow-hidden">
+    <div className="h-full flex flex-col md:flex-row gap-3 relative str-video">
       {/* LEFT SIDE — VIDEO & CONTROLS */}
       <div className="flex-1 flex flex-col min-h-0">
         {/* TOP BAR */}
@@ -49,6 +74,21 @@ function VideoCallUI({ chatClient, channel }) {
               {participantCount}{" "}
               {participantCount === 1 ? "participant" : "participants"}
             </span>
+            {/* Only show End button if user is host and session is active */}
+            {isHost && session?.status === "active" && (
+              <button
+                onClick={handleEndSession}
+                disabled={endSessionMutation.isPending}
+                className="btn btn-error btn-xs sm:btn-sm ml-2 flex items-center gap-1"
+              >
+                {endSessionMutation.isPending ? (
+                  <Loader2Icon className="w-3 h-3 animate-spin" />
+                ) : (
+                  <LogOutIcon className="w-3 h-3" />
+                )}
+                End
+              </button>
+            )}
           </div>
 
           {chatClient && channel && (
@@ -67,26 +107,24 @@ function VideoCallUI({ chatClient, channel }) {
         </div>
 
         {/* VIDEO + CONTROLS container */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {/* Video area: SpeakerLayout should expand to fill this area */}
-          <div className="flex-1 min-h-0 bg-base-300 rounded-lg overflow-hidden flex">
-            <SpeakerLayout className="flex-1 w-full h-full" />
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* VIDEO AREA */}
+          <div className="video-area flex-1 min-h-0 bg-base-300 rounded-lg relative flex">
+            <SpeakerLayout className="w-full h-full" />
+
+            {/* FLOATING CONTROLS (md and up) */}
+            <div
+              className="hidden md:block absolute left-1/2 -translate-x-1/2 bottom-4 z-[99]"
+              style={{ maxWidth: "90%" }}
+            >
+              <CallControls onLeave={handleLeave} />
+            </div>
           </div>
 
-          {/* CALL CONTROLS — pinned bottom, scrollable if inner content overflows */}
-          <div className="mt-2 bg-base-100 rounded-lg shadow flex-shrink-0">
-            {/* Outer padding scales down on small screens */}
-            <div className="p-1 sm:p-2 md:p-3">
-              {/* 
-      - scale-95 on very small screens makes the whole control slightly smaller
-      - sm:scale-100 restores normal size from sm up
-      - overflow-x-auto prevents horizontal clipping if controls are horizontal
-    */}
-              <div className="overflow-x-auto">
-                <div className="flex items-center justify-center transform scale-70 md:scale-85 lg:scale-100">
-                  <CallControls onLeave={() => navigate("/dashboard")} />
-                </div>
-              </div>
+          {/* SMALL-SCREEN CONTROLS (sm only) */}
+          <div className="mt-2 md:hidden overflow-x-auto px-2">
+            <div className="flex gap-2 w-max mx-auto">
+              <CallControls onLeave={handleLeave} />
             </div>
           </div>
         </div>
@@ -95,7 +133,7 @@ function VideoCallUI({ chatClient, channel }) {
       {/* CHAT DRAWER — overlay, does not affect layout */}
       {chatClient && channel && (
         <div
-          className={`fixed top-0 right-0 h-full z-50 bg-[#272a30] flex flex-col shadow-xl transition-all duration-300 ease-in-out ${
+          className={`fixed top-0 right-0 h-full z-[100] bg-[#272a30] flex flex-col shadow-xl transition-all duration-300 ease-in-out ${
             isChatOpen
               ? "w-72 sm:w-80 opacity-100"
               : "w-0 opacity-0 pointer-events-none"

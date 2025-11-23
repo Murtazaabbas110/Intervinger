@@ -187,22 +187,6 @@ function SessionPage() {
                         : "Easy"}
                     </span>
 
-                    {/* End session (only host, same disabled state) */}
-                    {isHost && session?.status === "active" && (
-                      <button
-                        onClick={handleEndSession}
-                        disabled={endSessionMutation.isPending}
-                        className="btn btn-error btn-xs sm:btn-sm"
-                      >
-                        {endSessionMutation.isPending ? (
-                          <Loader2Icon className="w-4 h-4 animate-spin mr-2" />
-                        ) : (
-                          <LogOutIcon className="w-4 h-4 mr-2" />
-                        )}
-                        End
-                      </button>
-                    )}
-
                     {/* Completed badge if session finished */}
                     {session?.status === "completed" && (
                       <span className="badge badge-ghost text-xs">
@@ -326,6 +310,11 @@ function SessionPage() {
                           <VideoCallUI
                             chatClient={chatClient}
                             channel={channel}
+                            isHost={isHost} // boolean
+                            session={session} // full session object
+                            handleEndSession={handleEndSession} // callback function
+                            endSessionMutation={endSessionMutation}
+                            sessionId = {id}
                           />
                         </StreamCall>
                       </StreamVideo>
@@ -383,21 +372,6 @@ function SessionPage() {
                                 session.difficulty.slice(1)
                               : "Easy"}
                           </span>
-
-                          {isHost && session?.status === "active" && (
-                            <button
-                              onClick={handleEndSession}
-                              disabled={endSessionMutation.isPending}
-                              className="btn btn-error btn-sm gap-2 text-xs sm:text-sm md:text-base"
-                            >
-                              {endSessionMutation.isPending ? (
-                                <Loader2Icon className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <LogOutIcon className="w-4 h-4" />
-                              )}
-                              End Session
-                            </button>
-                          )}
 
                           {session?.status === "completed" && (
                             <span className="badge badge-ghost badge-lg text-xs sm:text-sm md:text-base">
@@ -564,6 +538,11 @@ function SessionPage() {
                         <VideoCallUI
                           chatClient={chatClient}
                           channel={channel}
+                          isHost={isHost} // boolean
+                          session={session} // full session object
+                          handleEndSession={handleEndSession} // callback function
+                          endSessionMutation={endSessionMutation}
+                          sessionId = {id}
                         />
                       </StreamCall>
                     </StreamVideo>
