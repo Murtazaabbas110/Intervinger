@@ -1,5 +1,3 @@
-Absolutely! Here’s a full, polished Markdown structure for your README including badges, main headings, and subheadings under Install Dependencies and Run Application. You can drop this directly into your repository:
-
 # Intervinger
 
 ![MERN](https://img.shields.io/badge/Stack-MERN-blue)
