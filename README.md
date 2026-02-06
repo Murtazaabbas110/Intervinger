@@ -1,5 +1,3 @@
-Perfect! That gives us extra details about your auth, UI, and video integration stack. We can incorporate these into your README to make it more complete and professional. Here’s a polished version including Clerk, DaisyUI, TailwindCSS, Ingest API, and Stream API:
-
 # Intervinger
 
 ![MERN](https://img.shields.io/badge/Stack-MERN-blue)
