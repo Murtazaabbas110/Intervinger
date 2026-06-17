@@ -1,5 +1,8 @@
 import { chatClient, streamClient } from "../lib/stream.js";
 import Session from "../models/Session.js";
+import InterviewActivity from "../models/InterviewActivity.js";
+import InterviewReport from "../models/InterviewReport.js";
+import { analyzeInterview } from "../lib/geminiService.js";
 import mongoose from "mongoose";
 
 export async function createSession(req, res) {
@@ -139,7 +142,7 @@ export async function joinSession(req, res) {
         host: { $ne: userId },
       },
       { participant: userId },
-      { new: true }
+      { new: true },
     );
 
     if (!session) {
@@ -163,47 +166,192 @@ export async function endSession(req, res) {
     const { id } = req.params;
     const userId = req.user._id;
 
-    // ObjectId validation
+    console.log("\n==============================");
+    console.log("[endSession] START", { id, userId });
+    console.log("==============================\n");
+
+    // -------------------------
+    // Validate session ID
+    // -------------------------
     if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.log("[endSession] ❌ Invalid session ID");
       return res.status(400).json({ msg: "Invalid session ID" });
     }
 
+    // -------------------------
+    // Fetch session
+    // -------------------------
     const foundSession = await Session.findById(id);
 
-    if (!foundSession)
+    if (!foundSession) {
+      console.log("[endSession] ❌ Session not found");
       return res.status(404).json({ msg: "Session not found" });
+    }
 
-    if (foundSession.host.toString() !== userId.toString())
-      return res.status(403).json({ msg: "Only Host can end the session" });
+    console.log("[endSession] Session loaded:", {
+      status: foundSession.status,
+      callId: foundSession.callId,
+    });
 
-    if (foundSession.status === "completed")
-      return res.status(400).json({ msg: "Session is already completed" });
+    // -------------------------
+    // Authorization
+    // -------------------------
+    if (foundSession.host.toString() !== userId.toString()) {
+      console.log("[endSession] ❌ Unauthorized user");
+      return res.status(403).json({ msg: "Only host can end session" });
+    }
 
-    // Delete Stream video call and chat channel safely
+    if (foundSession.status === "completed") {
+      console.log("[endSession] ⚠️ Already completed");
+      return res.status(400).json({ msg: "Session already completed" });
+    }
+
+    // -------------------------
+    // Cleanup Stream
+    // -------------------------
     try {
       const call = streamClient.video.call("default", foundSession.callId);
       await call.delete({ hard: true });
+      console.log("[endSession] Stream deleted");
     } catch (err) {
-      console.log("Stream call delete failed:", err.message);
+      console.log("[endSession] Stream error:", err.message);
     }
 
+    // -------------------------
+    // Cleanup Chat
+    // -------------------------
     try {
       const channel = chatClient.channel("messaging", foundSession.callId);
       await channel.delete();
+      console.log("[endSession] Chat deleted");
     } catch (err) {
-      console.log("Chat channel delete failed:", err.message);
+      console.log("[endSession] Chat error:", err.message);
     }
 
-    // Update status to completed
+    // -------------------------
+    // Fetch activities
+    // -------------------------
+    const activities = await InterviewActivity.find({
+      sessionId: foundSession._id,
+    }).sort({ createdAt: 1 });
+
+    console.log("[endSession] Activities:", activities.length);
+
+    let finalReport = null;
+
+    // -------------------------
+    // AI PIPELINE
+    // -------------------------
+    if (activities.length > 0) {
+      try {
+        const timeline = activities.map((a) => ({
+          eventType: a.eventType,
+          timestamp: a.createdAt,
+          codeSnapshot: a.codeSnapshot,
+        }));
+
+        const finalCode = activities.at(-1)?.codeSnapshot || "";
+
+        console.log("[endSession] Sending AI request...");
+
+        const aiResult = await analyzeInterview({
+          timeline,
+          finalCode,
+        });
+
+        console.log("[endSession] RAW AI RESULT:", aiResult);
+
+        // -------------------------
+        // Normalize AI output (VERY IMPORTANT FIX)
+        // -------------------------
+        let parsed = null;
+
+        if (!aiResult) {
+          throw new Error("AI returned null/undefined");
+        }
+
+        if (typeof aiResult === "object") {
+          parsed =
+            aiResult.text ||
+            aiResult.response ||
+            aiResult.candidates?.[0]?.content?.parts?.[0]?.text ||
+            aiResult;
+        } else {
+          parsed = aiResult;
+        }
+
+        // If string → clean + parse
+        if (typeof parsed === "string") {
+          const cleaned = parsed
+            .replace(/```json/g, "")
+            .replace(/```/g, "")
+            .trim();
+
+          parsed = JSON.parse(cleaned);
+        }
+
+        console.log("[endSession] PARSED AI:", parsed);
+
+        if (!parsed || typeof parsed !== "object") {
+          throw new Error("Invalid AI response format");
+        }
+
+        // -------------------------
+        // Safe report object
+        // -------------------------
+        const reportPayload = {
+          sessionId: foundSession._id,
+          candidateId: foundSession.participant || foundSession.host,
+
+          score: Number(parsed.score) || 0,
+          readability: Number(parsed.readability) || 0,
+          efficiency: Number(parsed.efficiency) || 0,
+          problemSolving: Number(parsed.problemSolving) || 0,
+
+          copyPasteRisk: parsed.copyPasteRisk || "Unknown",
+          recommendation: parsed.recommendation || "No recommendation",
+          feedback: parsed.feedback || "",
+        };
+
+        console.log("[endSession] REPORT PAYLOAD:", reportPayload);
+
+        // -------------------------
+        // Prevent duplicates + save
+        // -------------------------
+        const existing = await InterviewReport.findOne({
+          sessionId: foundSession._id,
+        });
+
+        if (!existing) {
+          const created = await InterviewReport.create(reportPayload);
+
+          console.log("[endSession] ✅ REPORT SAVED:", created._id);
+          finalReport = created;
+        } else {
+          console.log("[endSession] ℹ️ Report already exists");
+        }
+      } catch (err) {
+        console.log("[endSession] ❌ AI PIPELINE FAILED");
+        console.log(err?.message || err);
+      }
+    }
+
+    // -------------------------
+    // Mark session complete
+    // -------------------------
     foundSession.status = "completed";
     await foundSession.save();
 
+    console.log("[endSession] DONE");
+
     return res.status(200).json({
       session: foundSession,
+      report: finalReport,
+      reportGenerated: !!finalReport,
       msg: "Session ended successfully",
     });
-  } catch (error) {
-    console.log("Error in endSession controller:", error.message);
+  } catch (err) {
+    console.log("[endSession] CRITICAL ERROR:", err);
     return res.status(500).json({ msg: "Internal Server Error" });
   }
 }
@@ -245,8 +393,13 @@ export async function leaveSession(req, res) {
     }
 
     // If participant is leaving
-    if (!session.participant || session.participant.toString() !== userId.toString()) {
-      return res.status(403).json({ msg: "You are not a participant of this session" });
+    if (
+      !session.participant ||
+      session.participant.toString() !== userId.toString()
+    ) {
+      return res
+        .status(403)
+        .json({ msg: "You are not a participant of this session" });
     }
 
     session.participant = null;
@@ -256,7 +409,10 @@ export async function leaveSession(req, res) {
       const channel = chatClient.channel("messaging", session.callId);
       await channel.removeMembers([req.user.clerkId]);
     } catch (err) {
-      console.log("Failed to remove participant from chat channel:", err.message);
+      console.log(
+        "Failed to remove participant from chat channel:",
+        err.message,
+      );
     }
 
     return res.status(200).json({ session, msg: "You have left the session" });
@@ -265,4 +421,3 @@ export async function leaveSession(req, res) {
     return res.status(500).json({ msg: "Internal Server Error" });
   }
 }
-

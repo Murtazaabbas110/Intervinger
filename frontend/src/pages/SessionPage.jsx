@@ -18,6 +18,7 @@ import OutputPanel from "../components/OutputPanel";
 import useStreamClient from "../hooks/useStreamClient";
 import { StreamCall, StreamVideo } from "@stream-io/video-react-sdk";
 import VideoCallUI from "../components/VideoCallUI";
+import { useInterviewTracker } from "../hooks/useInterviewTracker";
 
 function SessionPage() {
   const navigate = useNavigate();
@@ -49,8 +50,14 @@ function SessionPage() {
 
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [code, setCode] = useState(
-    problemData?.starterCode?.[selectedLanguage] || ""
+    problemData?.starterCode?.[selectedLanguage] || "",
   );
+
+  const tracker = useInterviewTracker({
+    sessionId: id,
+    userId: user?.id,
+    language: selectedLanguage,
+  });
 
   // auto-join session if user is not already a participant and not the host
   useEffect(() => {
@@ -76,6 +83,14 @@ function SessionPage() {
     }
   }, [problemData, selectedLanguage]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      tracker.flushEvents();
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLanguageChange = (e) => {
     const newLang = e.target.value;
     setSelectedLanguage(newLang);
@@ -97,7 +112,7 @@ function SessionPage() {
   const handleEndSession = () => {
     if (
       confirm(
-        "Are you sure you want to end this session? All participants will be notified."
+        "Are you sure you want to end this session? All participants will be notified.",
       )
     ) {
       // this will navigate the HOST to dashboard
@@ -178,7 +193,7 @@ function SessionPage() {
                     {/* Difficulty badge */}
                     <span
                       className={`badge ${getDifficultyBadgeClass(
-                        session?.difficulty
+                        session?.difficulty,
                       )}`}
                     >
                       {session?.difficulty
@@ -269,6 +284,7 @@ function SessionPage() {
                         onLanguageChange={handleLanguageChange}
                         onCodeChange={(value) => setCode(value)}
                         onRunCode={handleRunCode}
+                        tracker={tracker}
                       />
                     </div>
 
@@ -314,7 +330,7 @@ function SessionPage() {
                             session={session} // full session object
                             handleEndSession={handleEndSession} // callback function
                             endSessionMutation={endSessionMutation}
-                            sessionId = {id}
+                            sessionId={id}
                           />
                         </StreamCall>
                       </StreamVideo>
@@ -364,7 +380,7 @@ function SessionPage() {
                         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
                           <span
                             className={`badge badge-lg ${getDifficultyBadgeClass(
-                              session?.difficulty
+                              session?.difficulty,
                             )}`}
                           >
                             {session?.difficulty
@@ -484,6 +500,7 @@ function SessionPage() {
                         onLanguageChange={handleLanguageChange}
                         onCodeChange={(value) => setCode(value)}
                         onRunCode={handleRunCode}
+                        tracker={tracker}
                       />
                     </Panel>
 
@@ -542,7 +559,7 @@ function SessionPage() {
                           session={session} // full session object
                           handleEndSession={handleEndSession} // callback function
                           endSessionMutation={endSessionMutation}
-                          sessionId = {id}
+                          sessionId={id}
                         />
                       </StreamCall>
                     </StreamVideo>
