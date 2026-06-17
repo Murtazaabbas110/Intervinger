@@ -1,12 +1,11 @@
 // Piston API is a service for code execution
 
-const PISTON_API =
-  import.meta.env.VITE_PISTON_API_URL || "https://emkc.org/api/v2/piston";
+const JUDGE0_API = "https://ce.judge0.com";
 
-const LANGUAGE_VERSIONS = {
-  javascript: { language: "javascript", version: "18.15.0" },
-  python: { language: "python", version: "3.10.0" },
-  java: { language: "java", version: "15.0.2" },
+const LANGUAGE_IDS = {
+  javascript: 63,
+  python: 71,
+  java: 62,
 };
 
 /**
@@ -16,70 +15,82 @@ const LANGUAGE_VERSIONS = {
  */
 export async function executeCode(language, code) {
   try {
-    const languageConfig = LANGUAGE_VERSIONS[language];
+    const language_id = LANGUAGE_IDS[language];
 
-    if (!languageConfig) {
+    if (!language_id) {
       return {
         success: false,
         error: `Unsupported language: ${language}`,
       };
     }
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-    const response = await fetch(`${PISTON_API}/execute`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+
+    // -----------------------------
+    // 1. Submit code
+    // -----------------------------
+    const submitRes = await fetch(
+      `${JUDGE0_API}/submissions?base64_encoded=false&wait=false`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          language_id,
+          source_code: code,
+          stdin: "",
+        }),
       },
-      signal: controller.signal,
-      body: JSON.stringify({
-        language: languageConfig.language,
-        version: languageConfig.version,
-        files: [
-          {
-            name: `main.${getFileExtension(language)}`,
-            content: code,
-          },
-        ],
-      }),
-    });
+    );
 
-    clearTimeout(timeoutId);
+    const submitData = await submitRes.json();
+    const token = submitData.token;
 
-    if (!response.ok) {
+    if (!token) {
       return {
         success: false,
-        error: `HTTP error! status: ${response.status}`,
+        error: "Failed to get submission token",
       };
     }
 
-    const data = await response.json();
+    // -----------------------------
+    // 2. Poll result
+    // -----------------------------
+    let result;
+    for (let i = 0; i < 10; i++) {
+      await new Promise((r) => setTimeout(r, 800));
 
-    const output = data.run.output || "";
-    const stderr = data.run.stderr || "";
+      const res = await fetch(
+        `${JUDGE0_API}/submissions/${token}?base64_encoded=false`,
+      );
 
-    if (stderr) {
+      result = await res.json();
+
+      if (result.status?.id >= 3) break;
+    }
+
+    // -----------------------------
+    // 3. Parse output
+    // -----------------------------
+    const stdout = result.stdout || "";
+    const stderr = result.stderr || "";
+    const compileOutput = result.compile_output || "";
+
+    if (stderr || compileOutput) {
       return {
         success: false,
-        output: output,
-        error: stderr,
+        output: stdout,
+        error: stderr || compileOutput,
       };
     }
 
     return {
       success: true,
-      output: output || "No output",
+      output: stdout || "No output",
     };
   } catch (error) {
-    if (error.name === "AbortError") {
-      return {
-        success: false,
-        error: "Code execution timed out after 30 seconds",
-      };
-    }
     return {
       success: false,
-      error: `Failed to execute code: ${error.message}`,
+      error: error.message,
     };
   }
 }

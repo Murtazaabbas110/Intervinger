@@ -14,6 +14,9 @@ import ActiveSessions from "../components/ActiveSessions";
 import RecentSessions from "../components/RecentSessions";
 import CreateSessionModal from "../components/CreateSessionModal";
 
+import InterviewReports from "../components/InterviewReports";
+import { useReports } from "../hooks/useReports";
+
 function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -40,7 +43,7 @@ function DashboardPage() {
           setShowCreateModal(false);
           navigate(`/session/${data.session._id}`);
         },
-      }
+      },
     );
   };
 
@@ -55,6 +58,10 @@ function DashboardPage() {
       session.participant?.clerkId === user.id
     );
   };
+
+  const { data: reportsData, isLoading: loadingReports } = useReports();
+
+  const reports = reportsData || [];
 
   return (
     <>
@@ -89,6 +96,11 @@ function DashboardPage() {
               sessions={recentSessions}
               isLoading={loadingRecentSessions}
             />
+          </div>
+
+          {/* Interview Reports */}
+          <div className="mt-8">
+            <InterviewReports reports={reports} isLoading={loadingReports} />
           </div>
         </main>
       </div>
